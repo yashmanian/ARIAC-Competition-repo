@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 		pub.publish(msg);
 
 		// Send message to ROSOUT
-		ROS_INFO_STREAM("Sending random velocity command:"<<"Linear x:"<<msg.linear.x<<"Angular z:"<<msg.angular.z);
+		ROS_INFO_STREAM("Random velocity command:"<<"Linear x:"<<msg.linear.x<<"Angular z:"<<msg.angular.z);
 
 		// Delay till next iteration
 		rate.sleep();
