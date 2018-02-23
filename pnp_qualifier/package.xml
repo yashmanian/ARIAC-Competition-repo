@@ -15,5 +15,4 @@
   <depend>std_srvs</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>trajectory_msgs</depend>
-
 </package>
