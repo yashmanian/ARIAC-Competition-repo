@@ -181,13 +181,13 @@ void proximity_sensor_callback(const sensor_msgs::Range::ConstPtr & msg) {
   }
 }
 
-void laser_profiler_callback(const sensor_msgs::LaserScan::ConstPtr & msg) {
-  size_t number_of_valid_ranges = std::count_if(
-    msg->ranges.begin(), msg->ranges.end(), std::isfinite<float>);
-  if (number_of_valid_ranges > 0) {
-    ROS_INFO_THROTTLE(1, "Laser profiler sees something.");
-  }
-}
+// void laser_profiler_callback(const sensor_msgs::LaserScan::ConstPtr & msg) {
+//   size_t number_of_valid_ranges = std::count_if(
+//     msg->ranges.begin(), msg->ranges.end(), std::isfinite<float>);
+//   if (number_of_valid_ranges > 0) {
+//     ROS_INFO_THROTTLE(1, "Laser profiler sees something.");
+//   }
+// }
 
 // %Tag(MAIN)%
 int main(int argc, char ** argv) {
@@ -238,8 +238,8 @@ int main(int argc, char ** argv) {
     &MyCompetitionClass::logical_camera_callback, &comp_class);
 
   // Subscribe to the '/ariac/laser_profiler_1' topic.
-  ros::Subscriber laser_profiler_subscriber = node.subscribe(
-    "/ariac/laser_profiler_1", 10, laser_profiler_callback);
+  // ros::Subscriber laser_profiler_subscriber = node.subscribe(
+  //   "/ariac/laser_profiler_1", 10, laser_profiler_callback);
 
   ROS_INFO("Setup complete.");
   start_competition(node);

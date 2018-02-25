@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pnp_qualifier)
+add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
   osrf_gear
@@ -7,6 +8,9 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_srvs
   trajectory_msgs
+  moveit_core 
+  moveit_ros_planning 
+  moveit_ros_planning_interface 
 )
 
 catkin_package()
@@ -25,6 +29,7 @@ target_link_libraries(pnp_node ${catkin_LIBRARIES})
 add_executable(armController src/armController.cpp)
 add_dependencies(armController ${catkin_EXPORTED_TARGETS})
 target_link_libraries(armController ${catkin_LIBRARIES})
+#target_link_libraries(moveit_ros_planning_interface ${catkin_LIBRARIES})
 
 #############
 ## Install ##
