@@ -8,13 +8,12 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_srvs
   trajectory_msgs
-<<<<<<< HEAD
+
   moveit_ros_planning_interface
-=======
+  moveit_ros_planning_interface
   moveit_core 
   moveit_ros_planning 
   moveit_ros_planning_interface 
->>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
 )
 
 catkin_package()
