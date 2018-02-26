@@ -39,10 +39,16 @@
 
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_msgs/DisplayTrajectory.h>
+<<<<<<< HEAD
+
+#include <moveit_msgs/AttachedCollisionObject.h>
+#include <moveit_msgs/CollisionObject.h>
+=======
 
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
+>>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
 
 int main(int argc, char **argv)
 {
@@ -51,6 +57,16 @@ int main(int argc, char **argv)
   ros::AsyncSpinner spinner(1);
   spinner.start();
 
+<<<<<<< HEAD
+
+  static const std::string PLANNING_GROUP = "manipulator";
+  moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+
+  // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+  // const robot_state::JointModelGroup *joint_model_group =
+  //   move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+
+=======
   static const std::string PLANNING_GROUP = "manipulator";
   moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
 
@@ -71,12 +87,19 @@ int main(int argc, char **argv)
   // ^^^^^^^^^^^^^^^^^^^^^^^
   // We can plan a motion for this group to a desired pose for the
   // end-effector.
+>>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
   geometry_msgs::Pose target_pose1;
   target_pose1.orientation.w = 1.0;
   target_pose1.position.x = 0.28;
   target_pose1.position.y = -0.7;
   target_pose1.position.z = 1.0;
   move_group.setPoseTarget(target_pose1);
+<<<<<<< HEAD
+
+  // move_group.move(); 
+
+  ros::waitForShutdown();
+=======
 
   // Now, we call the planner to compute the plan and visualize it.
   // Note that we are just planning, not asking move_group
@@ -94,4 +117,5 @@ int main(int argc, char **argv)
 
   ros::shutdown();
   return 0;
+>>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
 }
