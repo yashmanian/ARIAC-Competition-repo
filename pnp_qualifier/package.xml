@@ -15,4 +15,5 @@
   <depend>std_srvs</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>trajectory_msgs</depend>
+  <depend>moveit_ros_planning_interface</depend>
 </package>

@@ -8,9 +8,13 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_srvs
   trajectory_msgs
+<<<<<<< HEAD
+  moveit_ros_planning_interface
+=======
   moveit_core 
   moveit_ros_planning 
   moveit_ros_planning_interface 
+>>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
 )
 
 catkin_package()
@@ -19,12 +23,12 @@ catkin_package()
 ## Build ##
 ###########
 
-include_directories(include ${catkin_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 ## Declare a C++ executable
-add_executable(pnp_node src/pnp_node.cpp)
-add_dependencies(pnp_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pnp_node ${catkin_LIBRARIES})
+# add_executable(pnp_node src/pnp_node.cpp)
+# add_dependencies(pnp_node ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(pnp_node ${catkin_LIBRARIES})
 
 add_executable(armController src/armController.cpp)
 add_dependencies(armController ${catkin_EXPORTED_TARGETS})
@@ -40,11 +44,11 @@ target_link_libraries(armController ${catkin_LIBRARIES})
 
 
 ## Mark executables and/or libraries for installation
-install(TARGETS pnp_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# install(TARGETS pnp_node
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 install(TARGETS armController
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
