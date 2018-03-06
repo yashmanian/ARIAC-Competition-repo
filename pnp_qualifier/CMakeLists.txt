@@ -13,7 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   moveit_core 
   moveit_ros_planning 
-  moveit_ros_planning_interface 
+  moveit_ros_planning_interface
+  moveit_visual_tools
 )
 
 catkin_package()
@@ -34,6 +35,10 @@ add_dependencies(armController ${catkin_EXPORTED_TARGETS})
 target_link_libraries(armController ${catkin_LIBRARIES})
 #target_link_libraries(moveit_ros_planning_interface ${catkin_LIBRARIES})
 
+# add_executable(armHome src/arm_home.cpp)
+# add_dependencies(armHome ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(armHome ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############
@@ -49,7 +54,7 @@ target_link_libraries(armController ${catkin_LIBRARIES})
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-install(TARGETS armController
+install(TARGETS armController 
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -1,121 +1,289 @@
-/*********************************************************************
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2013, SRI International
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of SRI International nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *********************************************************************/
+#include <algorithm>
+#include <vector>
 
-/* Author: Sachin Chitta, Dave Coleman */
+#include <ros/ros.h>
 
+#include <osrf_gear/LogicalCameraImage.h>
+#include <osrf_gear/Order.h>
+#include <sensor_msgs/JointState.h>
+#include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/Range.h>
+#include <std_msgs/Float32.h>
+#include <std_msgs/String.h>
+#include <std_msgs/Header.h>
+#include <std_srvs/Trigger.h>
+#include <trajectory_msgs/JointTrajectory.h>
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
-
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_msgs/DisplayTrajectory.h>
-<<<<<<< HEAD
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <osrf_gear/VacuumGripperControl.h>
+#include <osrf_gear/VacuumGripperState.h>
+#include <tf2_ros/transform_listener.h>
+#include<osrf_gear/AGVControl.h>
 
-#include <moveit_msgs/AttachedCollisionObject.h>
-#include <moveit_msgs/CollisionObject.h>
-=======
 
-#include <moveit_msgs/AttachedCollisionObject.h>
-#include <moveit_msgs/CollisionObject.h>
+/// Start the competition by waiting for and then calling the start ROS Service.
+void start_competition(ros::NodeHandle & node) {
+  // Create a Service client for the correct service, i.e. '/ariac/start_competition'.
+  ros::ServiceClient start_client =
+    node.serviceClient<std_srvs::Trigger>("/ariac/start_competition");
+  // If it's not already ready, wait for it to be ready.
+  // Calling the Service using the client before the server is ready would fail.
+  if (!start_client.exists()) {
+    ROS_INFO("Waiting for the competition to be ready...");
+    start_client.waitForExistence();
+    ROS_INFO("Competition is now ready.");
+  }
+  ROS_INFO("Requesting competition start...");
+  std_srvs::Trigger srv;  // Combination of the "request" and the "response".
+  start_client.call(srv);  // Call the start Service.
+  if (!srv.response.success) {  // If not successful, print out why.
+    ROS_ERROR_STREAM("Failed to start the competition: " << srv.response.message);
+  } else {
+    ROS_INFO("Competition started!");
+  }
+}
 
->>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
 
-int main(int argc, char **argv)
+class armController
 {
-  ros::init(argc, argv, "move_group_interface_tutorial");
-  ros::NodeHandle node_handle;
+public:
+  armController(ros::NodeHandle & node)
+  {
+    joint_trajectory_publisher_ = node.advertise<trajectory_msgs::JointTrajectory>("/ariac/arm/command", 10);
+    gripperStateSubscriber = node.subscribe("/ariac/gripper/state", 10, &armController::gripperStateCallback, this);
+    gripper_client = node.serviceClient<osrf_gear::VacuumGripperControl>("/ariac/gripper/control");
+    
+    home_pose.position.x = -0.1;
+    home_pose.position.y = 0.79;
+    home_pose.position.z = 0.9;
+    home_pose.orientation.w = w/mag;
+    home_pose.orientation.x = x/mag;
+    home_pose.orientation.y = y/mag;
+    home_pose.orientation.z = z/mag;
+
+    mag = sqrt(x*x + y*y + z*z + w*w);
+
+    mid1_pose.position.x = -0.0426;
+    mid1_pose.position.y = 1.6;
+    mid1_pose.position.z = 0.9;
+    mid1_pose.orientation.w = w/mag;
+    mid1_pose.orientation.x = x/mag;
+    mid1_pose.orientation.y = y/mag;
+    mid1_pose.orientation.z = z/mag;
+
+    mid2_pose.position.x = -0.0426;
+    mid2_pose.position.y = 3.1;
+    mid2_pose.position.z = 0.9;
+    mid2_pose.orientation.w = w/mag;
+    mid2_pose.orientation.x = x/mag;
+    mid2_pose.orientation.y = y/mag;
+    mid2_pose.orientation.z = z/mag;
+
+
+    agv_pose.position.x = 0.3;
+    agv_pose.position.y = 3.1;
+    agv_pose.position.z = 0.9;
+    agv_pose.orientation.w = w/mag;
+    agv_pose.orientation.x = x/mag;
+    agv_pose.orientation.y = y/mag;
+    agv_pose.orientation.z = z/mag;
+  }
+
+  moveit::planning_interface::MoveGroupInterface plannerInit()
+  {
+    static const std::string PLANNING_GROUP = "manipulator";
+    moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+    move_group.setPlannerId("RRTkConfigDefault");
+    move_group.setPlanningTime(10.0);
+    move_group.setNumPlanningAttempts(20);
+    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+    const robot_state::JointModelGroup *joint_model_group = move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+    return move_group;
+  }
+
+  bool goToPose(geometry_msgs::Pose & target_pose, moveit::planning_interface::MoveGroupInterface & move_group)
+  {
+    move_group.setPoseTarget(target_pose);
+    move_group.move();
+    move_group.plan(my_plan);
+    success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    return success;
+  }
+
+  void gripperStateCallback(const osrf_gear::VacuumGripperState::ConstPtr &msg) 
+  {
+    currentGripperState = *msg;
+    attached = msg->attached;
+  }
+
+
+  osrf_gear::VacuumGripperState getGripperState() 
+  {
+    ros::spinOnce();
+    return currentGripperState;
+  }
+
+  bool isGripperAttached() 
+  {
+    ros::spinOnce();
+    return attached;
+  }
+
+  void grab() 
+  {
+    ROS_INFO("Enable gripper");
+    attach_.request.enable = 1;
+    gripper_client.call(attach_);
+    ros::spinOnce();
+    ROS_INFO("I %s got the part", isGripperAttached()? "have": "haven't");
+  }
+
+  void release() 
+  {
+    ROS_INFO("Release gripper");
+    attach_.request.enable = 0;
+    gripper_client.call(attach_);
+    ros::spinOnce();
+  }
+
+  void dropPart(geometry_msgs::Pose & pose_1a, geometry_msgs::Pose & pose_1b, moveit::planning_interface::MoveGroupInterface & move_group)
+  {
+    pose_1a.orientation.w = w/mag;
+    pose_1a.orientation.x = x/mag;
+    pose_1a.orientation.y = y/mag;
+    pose_1a.orientation.z = z/mag;
+    pose_1b.orientation.w = w/mag;
+    pose_1b.orientation.x = x/mag;
+    pose_1b.orientation.y = y/mag;
+    pose_1b.orientation.z = z/mag;
+
+    this->armController::goToPose(pose_1a, move_group);
+    ros::Duration(3).sleep();
+    this->armController::goToPose(pose_1b, move_group);
+    this->armController::grab();
+    ros::Duration(3).sleep();
+    this->armController::goToPose(pose_1a, move_group);
+    ros::Duration(3).sleep();
+    this->armController::goToPose(mid1_pose, move_group);
+    ros::Duration(3).sleep();
+    this->armController::goToPose(mid2_pose, move_group);
+    ros::Duration(3).sleep();
+    this->armController::goToPose(agv_pose, move_group);
+    this->armController::release();
+    ros::Duration(3).sleep();
+    this->armController::goToPose(mid1_pose, move_group);
+    ros::Duration(3).sleep();
+    this->armController::goToPose(mid2_pose, move_group);
+    ros::Duration(3).sleep();
+  }
+
+private:
+  tf::TransformListener listener;
+  bool success = false;
+  ros::Publisher joint_trajectory_publisher_;
+  ros::Subscriber gripperStateSubscriber;
+  moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+  float arrivalTime = 0.5;
+  bool attached = false;
+  ros::ServiceClient gripper_client;
+  osrf_gear::VacuumGripperState currentGripperState;
+  osrf_gear::VacuumGripperControl attach_;
+  osrf_gear::VacuumGripperControl detach_;
+  tf2_ros::Buffer tfBuffer;
+  geometry_msgs::TransformStamped transformStamped;
+
+  float w = 0.707;
+  float x = 0;
+  float y = 0.707;
+  float z = 0;
+  float mag = 1;
+
+  geometry_msgs::Pose home_pose;
+  geometry_msgs::Pose mid1_pose;
+  geometry_msgs::Pose mid2_pose;
+  geometry_msgs::Pose agv_pose;
+};
+
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, "ariac_example_node");
+  ros::NodeHandle node;
   ros::AsyncSpinner spinner(1);
   spinner.start();
+  start_competition(node);
 
-<<<<<<< HEAD
+  armController Arm(node);
+  moveit::planning_interface::MoveGroupInterface move_group = Arm.plannerInit();
+  bool success = false;
 
-  static const std::string PLANNING_GROUP = "manipulator";
-  moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+  geometry_msgs::Pose pose_1a;
+  geometry_msgs::Pose pose_1b;
+  geometry_msgs::Pose pose_2a;
+  geometry_msgs::Pose pose_2b;
+  geometry_msgs::Pose pose_3a;
+  geometry_msgs::Pose pose_3b;
+  geometry_msgs::Pose pose_4a;
+  geometry_msgs::Pose pose_4b;
+  geometry_msgs::Pose pose_5a;
+  geometry_msgs::Pose pose_5b;
 
-  // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-  // const robot_state::JointModelGroup *joint_model_group =
-  //   move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+  pose_1a.position.x = -0.1;
+  pose_1a.position.y = -0.35;
+  pose_1a.position.z = 0.9;
 
-=======
-  static const std::string PLANNING_GROUP = "manipulator";
-  moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+  pose_1b.position.x = -0.1;
+  pose_1b.position.y = -0.35;
+  pose_1b.position.z = 0.73;
 
-  const robot_state::JointModelGroup *joint_model_group =
-    move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+  pose_2a.position.x = -0.1;
+  pose_2a.position.y = -0.47;
+  pose_2a.position.z = 0.9;
+
+  pose_2b.position.x = -0.1;
+  pose_2b.position.y = -0.47;
+  pose_2b.position.z = 0.73;
+
+  pose_3a.position.x = -0.1;
+  pose_3a.position.y = -0.6;
+  pose_3a.position.z = 0.9;
+
+  pose_3b.position.x = -0.1;
+  pose_3b.position.y = -0.6;
+  pose_3b.position.z = 0.73;
+
+  pose_4a.position.x = -0.1;
+  pose_4a.position.y = 0.43;
+  pose_4a.position.z = 0.9;
+
+  pose_4b.position.x = -0.1;
+  pose_4b.position.y = 0.43;
+  pose_4b.position.z = 0.723;
+
+  pose_5a.position.x =-0.1;
+  pose_5a.position.y = 0.23;
+  pose_5a.position.z = 0.9;
+
+  pose_5b.position.x = -0.1;
+  pose_5b.position.y = 0.23;
+  pose_5b.position.z = 0.726;
 
 
-  // Getting Basic Information
-  // ^^^^^^^^^^^^^^^^^^^^^^^^^
-  //
-  // We can print the name of the reference frame for this robot.
-  ROS_INFO_NAMED("tutorial", "Reference frame: %s", move_group.getPlanningFrame().c_str());
+// Motion
+  Arm.dropPart(pose_1a, pose_1b, move_group);
+  Arm.dropPart(pose_2a, pose_2b, move_group);
+  Arm.dropPart(pose_3a, pose_3b, move_group);
+  Arm.dropPart(pose_4a, pose_4b, move_group);
+  Arm.dropPart(pose_5a, pose_5b, move_group);
 
-  // We can also print the name of the end-effector link for this group.
-  ROS_INFO_NAMED("tutorial", "End effector link: %s", move_group.getEndEffectorLink().c_str());
-
-  // Planning to a Pose goal
-  // ^^^^^^^^^^^^^^^^^^^^^^^
-  // We can plan a motion for this group to a desired pose for the
-  // end-effector.
->>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
-  geometry_msgs::Pose target_pose1;
-  target_pose1.orientation.w = 1.0;
-  target_pose1.position.x = 0.28;
-  target_pose1.position.y = -0.7;
-  target_pose1.position.z = 1.0;
-  move_group.setPoseTarget(target_pose1);
-<<<<<<< HEAD
-
-  // move_group.move(); 
-
-  ros::waitForShutdown();
-=======
-
-  // Now, we call the planner to compute the plan and visualize it.
-  // Note that we are just planning, not asking move_group
-  // to actually move the robot.
-  moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-
-  bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-
-  ROS_INFO_NAMED("tutorial", "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
-
-  // move_group.move() 
-
- 
-  // END_TUTORIAL
-
-  ros::shutdown();
-  return 0;
->>>>>>> e14df5f9c7d3359f933181820626e5225dc390cf
+  osrf_gear::AGVControl srv1;
+  ros::ServiceClient client1 = node.serviceClient<osrf_gear::AGVControl>("/ariac/agv1");
+  client1.call(srv1);
 }

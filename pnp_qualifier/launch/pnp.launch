@@ -1,0 +1,14 @@
+<launch>
+ 
+  <include file="$(find ur10_moveit_config)/launch/ur10_moveit_planning_execution.launch">
+  <arg name ="sim" value="true"/>
+</include>
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <param name="/use_gui" value="true"/>
+  </node>
+
+  <node name="armController" pkg="pnp_qualifier" type="armController" respawn="false" output="screen">
+  </node>
+  
+</launch>
