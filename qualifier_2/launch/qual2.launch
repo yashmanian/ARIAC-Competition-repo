@@ -8,7 +8,7 @@
     <param name="/use_gui" value="true"/>
   </node>
 
-  <node name="armController" pkg="pnp_qualifier" type="armController" respawn="false" output="screen">
+  <node name="qual2_node" pkg="qualifier2" type="qual2_node" respawn="false" output="screen">
   </node>
   
 </launch>

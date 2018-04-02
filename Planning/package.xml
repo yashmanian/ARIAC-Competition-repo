@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>pnp_qualifier</name>
+  <name>qual1_planning</name>
   <version>0.1.0</version>
   <description>Package for the ARIAC qualifier.</description>
   <maintainer email="ymanian@umd.edu">YashManian</maintainer>
@@ -16,5 +16,4 @@
   <depend>tf2_geometry_msgs</depend>
   <depend>trajectory_msgs</depend>
   <depend>moveit_ros_planning_interface</depend>
-  <depend>moveit_visual_tools</depend>
 </package>

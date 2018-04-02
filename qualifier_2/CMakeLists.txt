@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(pnp_qualifier)
+project(qualifier2)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -14,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core 
   moveit_ros_planning 
   moveit_ros_planning_interface
-  moveit_visual_tools
 )
 
 catkin_package()
@@ -26,18 +25,9 @@ catkin_package()
 include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 ## Declare a C++ executable
-# add_executable(pnp_node src/pnp_node.cpp)
-# add_dependencies(pnp_node ${catkin_EXPORTED_TARGETS})
-# target_link_libraries(pnp_node ${catkin_LIBRARIES})
-
-add_executable(armController src/armController.cpp)
-add_dependencies(armController ${catkin_EXPORTED_TARGETS})
-target_link_libraries(armController ${catkin_LIBRARIES})
-#target_link_libraries(moveit_ros_planning_interface ${catkin_LIBRARIES})
-
-# add_executable(armHome src/arm_home.cpp)
-# add_dependencies(armHome ${catkin_EXPORTED_TARGETS})
-# target_link_libraries(armHome ${catkin_LIBRARIES})
+add_executable(qual2_node src/qual2.cpp)
+ add_dependencies(qual2_node ${catkin_EXPORTED_TARGETS})
+ target_link_libraries(qual2_node ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -48,17 +38,12 @@ target_link_libraries(armController ${catkin_LIBRARIES})
 
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS pnp_node
+# install(TARGETS qual2_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-install(TARGETS armController 
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

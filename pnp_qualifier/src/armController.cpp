@@ -51,6 +51,7 @@ void start_competition(ros::NodeHandle & node) {
 }
 
 
+// Arm controller class
 class armController
 {
 public:
@@ -100,12 +101,46 @@ public:
   {
     static const std::string PLANNING_GROUP = "manipulator";
     moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
-    move_group.setPlannerId("RRTkConfigDefault");
+    move_group.setPlannerId("TRRTkConfigDefault");
     move_group.setPlanningTime(10.0);
     move_group.setNumPlanningAttempts(20);
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
     const robot_state::JointModelGroup *joint_model_group = move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
     return move_group;
+  }
+
+  void send_arm_to_zero_state(float linear_pos, float shoulder_pan) 
+  {
+    // Create a message to send.
+    trajectory_msgs::JointTrajectory msg;
+
+    // Fill the names of the joints to be controlled.
+    // Note that the vacuum_gripper_joint is not controllable.
+    msg.joint_names.clear();
+    msg.joint_names.push_back("elbow_joint");
+    msg.joint_names.push_back("linear_arm_actuator_joint");
+    msg.joint_names.push_back("shoulder_lift_joint");
+    msg.joint_names.push_back("shoulder_pan_joint");
+    msg.joint_names.push_back("wrist_1_joint");
+    msg.joint_names.push_back("wrist_2_joint");
+    msg.joint_names.push_back("wrist_3_joint");
+    // Create one point in the trajectory.
+    msg.points.resize(1);
+    // Resize the vector to the same length as the joint names.
+    // Values are initialized to 0.
+    msg.points[0].positions.resize(msg.joint_names.size(), 0.0);
+    msg.points[0].positions[0] = 1.51;
+    msg.points[0].positions[1] = linear_pos;
+    msg.points[0].positions[2] = -1.128;
+    msg.points[0].positions[3] = shoulder_pan;
+    msg.points[0].positions[4] = 3.77;
+    msg.points[0].positions[5] = -1.51;
+    msg.points[0].positions[6] = 0.0;
+
+    // How long to take getting to the point (floating point seconds).
+    msg.points[0].time_from_start = ros::Duration(1);
+    ROS_INFO_STREAM("Sending command:\n" << msg);
+    joint_trajectory_publisher_.publish(msg);
   }
 
   bool goToPose(geometry_msgs::Pose & target_pose, moveit::planning_interface::MoveGroupInterface & move_group)
@@ -153,39 +188,54 @@ public:
     ros::spinOnce();
   }
 
-  void dropPart(geometry_msgs::Pose & pose_1a, geometry_msgs::Pose & pose_1b, moveit::planning_interface::MoveGroupInterface & move_group)
+  void dropPart(geometry_msgs::PoseStamped & pose_1a, geometry_msgs::PoseStamped & pose_1b, moveit::planning_interface::MoveGroupInterface & move_group)
   {
-    pose_1a.orientation.w = w/mag;
-    pose_1a.orientation.x = x/mag;
-    pose_1a.orientation.y = y/mag;
-    pose_1a.orientation.z = z/mag;
-    pose_1b.orientation.w = w/mag;
-    pose_1b.orientation.x = x/mag;
-    pose_1b.orientation.y = y/mag;
-    pose_1b.orientation.z = z/mag;
+    pose_1a.pose.orientation.w = w/mag;
+    pose_1a.pose.orientation.x = x/mag;
+    pose_1a.pose.orientation.y = y/mag;
+    pose_1a.pose.orientation.z = z/mag;
+    pose_1b.pose.orientation.w = w/mag;
+    pose_1b.pose.orientation.x = x/mag;
+    pose_1b.pose.orientation.y = y/mag;
+    pose_1b.pose.orientation.z = z/mag;
 
-    this->armController::goToPose(pose_1a, move_group);
+    send_arm_to_zero_state(0.0, 3.14);
+    ros::Duration(5).sleep();
+
+    pose_1a.pose.position.z += 0.17;
+    this->armController::goToPose(pose_1a.pose, move_group);
     ros::Duration(3).sleep();
-    this->armController::goToPose(pose_1b, move_group);
+
+    pose_1a.pose.position.z -= 0.17;
+    this->armController::goToPose(pose_1a.pose, move_group);
     this->armController::grab();
     ros::Duration(3).sleep();
-    this->armController::goToPose(pose_1a, move_group);
-    ros::Duration(3).sleep();
-    this->armController::goToPose(mid1_pose, move_group);
-    ros::Duration(3).sleep();
-    this->armController::goToPose(mid2_pose, move_group);
-    ros::Duration(3).sleep();
-    this->armController::goToPose(agv_pose, move_group);
+
+    send_arm_to_zero_state(0.0, 3.14);
+    ros::Duration(5).sleep();
+
+    send_arm_to_zero_state(0.0, 1.51);
+  	ros::Duration(3).sleep();
+
+    send_arm_to_zero_state(2.0, 1.51);
+  	ros::Duration(3).sleep();
+
+    this->armController::goToPose(pose_1b.pose, move_group);
     this->armController::release();
     ros::Duration(3).sleep();
-    this->armController::goToPose(mid1_pose, move_group);
-    ros::Duration(3).sleep();
-    this->armController::goToPose(mid2_pose, move_group);
-    ros::Duration(3).sleep();
+
+    send_arm_to_zero_state(2.0, 1.51);
+  	ros::Duration(3).sleep();
+
+  	send_arm_to_zero_state(0.0, 1.51);
+  	ros::Duration(3).sleep();
+
+  	send_arm_to_zero_state(0.0, 3.14);
+    ros::Duration(5).sleep();
   }
 
 private:
-  tf::TransformListener listener;
+  //tf::TransformListener listener;
   bool success = false;
   ros::Publisher joint_trajectory_publisher_;
   ros::Subscriber gripperStateSubscriber;
@@ -212,6 +262,7 @@ private:
 };
 
 
+
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "ariac_example_node");
@@ -224,65 +275,79 @@ int main(int argc, char** argv)
   moveit::planning_interface::MoveGroupInterface move_group = Arm.plannerInit();
   bool success = false;
 
-  geometry_msgs::Pose pose_1a;
-  geometry_msgs::Pose pose_1b;
-  geometry_msgs::Pose pose_2a;
-  geometry_msgs::Pose pose_2b;
-  geometry_msgs::Pose pose_3a;
-  geometry_msgs::Pose pose_3b;
-  geometry_msgs::Pose pose_4a;
-  geometry_msgs::Pose pose_4b;
-  geometry_msgs::Pose pose_5a;
-  geometry_msgs::Pose pose_5b;
+  geometry_msgs::PoseStamped pose_1a;
+  geometry_msgs::PoseStamped pose_1b;
+  // geometry_msgs::Pose pose_2a;
+  // geometry_msgs::Pose pose_2b;
+  // geometry_msgs::Pose pose_3a;
+  // geometry_msgs::Pose pose_3b;
+  // geometry_msgs::Pose pose_4a;
+  // geometry_msgs::Pose pose_4b;
+  // geometry_msgs::Pose pose_5a;
+  // geometry_msgs::Pose pose_5b;
 
-  pose_1a.position.x = -0.1;
-  pose_1a.position.y = -0.35;
-  pose_1a.position.z = 0.9;
+  pose_1a.pose.position.x = -0.1;
+  pose_1a.pose.position.y = -0.35;
+  pose_1a.pose.position.z = 0.9;
 
-  pose_1b.position.x = -0.1;
-  pose_1b.position.y = -0.35;
-  pose_1b.position.z = 0.73;
+  pose_1b.pose.position.x = 0.3;
+  pose_1b.pose.position.y = 3.1;
+  pose_1b.pose.position.z = 0.9;
 
-  pose_2a.position.x = -0.1;
-  pose_2a.position.y = -0.47;
-  pose_2a.position.z = 0.9;
+  // pose_2a.position.x = -0.1;
+  // pose_2a.position.y = -0.47;
+  // pose_2a.position.z = 0.9;
 
-  pose_2b.position.x = -0.1;
-  pose_2b.position.y = -0.47;
-  pose_2b.position.z = 0.73;
+  // pose_2b.position.x = -0.1;
+  // pose_2b.position.y = -0.47;
+  // pose_2b.position.z = 0.73;
 
-  pose_3a.position.x = -0.1;
-  pose_3a.position.y = -0.6;
-  pose_3a.position.z = 0.9;
+  // pose_3a.position.x = -0.1;
+  // pose_3a.position.y = -0.6;
+  // pose_3a.position.z = 0.9;
 
-  pose_3b.position.x = -0.1;
-  pose_3b.position.y = -0.6;
-  pose_3b.position.z = 0.73;
+  // pose_3b.position.x = -0.1;
+  // pose_3b.position.y = -0.6;
+  // pose_3b.position.z = 0.73;
 
-  pose_4a.position.x = -0.1;
-  pose_4a.position.y = 0.43;
-  pose_4a.position.z = 0.9;
+  // pose_4a.position.x = -0.1;
+  // pose_4a.position.y = 0.43;
+  // pose_4a.position.z = 0.9;
 
-  pose_4b.position.x = -0.1;
-  pose_4b.position.y = 0.43;
-  pose_4b.position.z = 0.723;
+  // pose_4b.position.x = -0.1;
+  // pose_4b.position.y = 0.43;
+  // pose_4b.position.z = 0.723;
 
-  pose_5a.position.x =-0.1;
-  pose_5a.position.y = 0.23;
-  pose_5a.position.z = 0.9;
+  // pose_5a.position.x =-0.1;
+  // pose_5a.position.y = 0.23;
+  // pose_5a.position.z = 0.9;
 
-  pose_5b.position.x = -0.1;
-  pose_5b.position.y = 0.23;
-  pose_5b.position.z = 0.726;
+  // pose_5b.position.x = -0.1;
+  // pose_5b.position.y = 0.23;
+  // pose_5b.position.z = 0.726;
 
 
 // Motion
-  Arm.dropPart(pose_1a, pose_1b, move_group);
-  Arm.dropPart(pose_2a, pose_2b, move_group);
-  Arm.dropPart(pose_3a, pose_3b, move_group);
-  Arm.dropPart(pose_4a, pose_4b, move_group);
-  Arm.dropPart(pose_5a, pose_5b, move_group);
+  // Arm.send_arm_to_zero_state(0.0, 3.14);
+  // ros::Duration(3).sleep();
 
+  // Arm.send_arm_to_zero_state(0.0, 1.51);
+  // ros::Duration(3).sleep();
+
+  // Arm.send_arm_to_zero_state(2.0, 1.51);
+  // ros::Duration(3).sleep();
+
+  // Arm.send_arm_to_zero_state(0.0, 1.51);
+  // ros::Duration(3).sleep();
+
+  // Arm.send_arm_to_zero_state(0.0, 3.14);
+  // ros::Duration(3).sleep();
+
+  Arm.dropPart(pose_1a, pose_1b, move_group);
+  // Arm.dropPart(pose_3a, pose_3b, move_group);
+  // Arm.dropPart(pose_4a, pose_4b, move_group);
+  // Arm.dropPart(pose_5a, pose_5b, move_group);
+  move_group.setNamedTarget("up");
   osrf_gear::AGVControl srv1;
   ros::ServiceClient client1 = node.serviceClient<osrf_gear::AGVControl>("/ariac/agv1");
   client1.call(srv1);
