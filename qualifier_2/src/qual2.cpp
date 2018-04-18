@@ -157,41 +157,6 @@ public:
     joint_trajectory_publisher_ = node.advertise<trajectory_msgs::JointTrajectory>("/ariac/arm/command", 10);
     gripperStateSubscriber = node.subscribe("/ariac/gripper/state", 10, &armController::gripperStateCallback, this);
     gripper_client = node.serviceClient<osrf_gear::VacuumGripperControl>("/ariac/gripper/control");
-    
-    home_pose.position.x = -0.1;
-    home_pose.position.y = 0.79;
-    home_pose.position.z = 0.9;
-    home_pose.orientation.w = w/mag;
-    home_pose.orientation.x = x/mag;
-    home_pose.orientation.y = y/mag;
-    home_pose.orientation.z = z/mag;
-
-    mag = sqrt(x*x + y*y + z*z + w*w);
-
-    mid1_pose.position.x = -0.0426;
-    mid1_pose.position.y = 1.6;
-    mid1_pose.position.z = 0.9;
-    mid1_pose.orientation.w = w/mag;
-    mid1_pose.orientation.x = x/mag;
-    mid1_pose.orientation.y = y/mag;
-    mid1_pose.orientation.z = z/mag;
-
-    mid2_pose.position.x = -0.0426;
-    mid2_pose.position.y = 3.1;
-    mid2_pose.position.z = 0.9;
-    mid2_pose.orientation.w = w/mag;
-    mid2_pose.orientation.x = x/mag;
-    mid2_pose.orientation.y = y/mag;
-    mid2_pose.orientation.z = z/mag;
-
-
-    agv_pose.position.x = 0.3;
-    agv_pose.position.y = 3.1;
-    agv_pose.position.z = 0.9;
-    agv_pose.orientation.w = w/mag;
-    agv_pose.orientation.x = x/mag;
-    agv_pose.orientation.y = y/mag;
-    agv_pose.orientation.z = z/mag;
   }
 
   moveit::planning_interface::MoveGroupInterface plannerInit()
@@ -206,7 +171,7 @@ public:
     return move_group;
   }
 
-  void send_arm_to_zero_state(float elbow, float linear_pos, float shoulder_lift, float shoulder_pan, float wrist1, float wrist2, float wrist3) 
+  void set_joint_state(float elbow, float linear_pos, float shoulder_lift, float shoulder_pan, float wrist1, float wrist2, float wrist3) 
   {
     // Create a message to send.
     trajectory_msgs::JointTrajectory msg;
@@ -235,17 +200,57 @@ public:
     msg.points[0].positions[6] = wrist3;
 
     // How long to take getting to the point (floating point seconds).
-    msg.points[0].time_from_start = ros::Duration(2);
-    ROS_INFO_STREAM("Sending command:\n" << msg);
+    msg.points[0].time_from_start = ros::Duration(1);
+    // ROS_INFO_STREAM("Sending command:\n" << msg);
     joint_trajectory_publisher_.publish(msg);
   }
+
+  void go_to_home()
+  {
+    set_joint_state(1.51, 0.0, -1.128, 3.14, 3.77, -1.51, 0.0);
+    ROS_INFO("Moved to home");
+  }
+
+  void go_to_agv1()
+  {
+    set_joint_state(1.46, 2.1, -0.54, 1.57, 3.8, -1.57, 1.406);
+    ROS_INFO("Moved to AGV1");
+  }
+
+  void go_to_agv2()
+  {
+    set_joint_state(1.46, -2.1, -0.54, 4.71, 3.8, -1.57, 1.406);
+    ROS_INFO("Moved to AGV2");
+  }
+
+  void travel_left()
+  {
+    set_joint_state(1.51, 0.0, -1.128, 1.57, 3.77, -1.51, 0.0);
+    ROS_INFO("Travelling left");
+  }
+
+  void travel_right()
+  {
+    set_joint_state(1.51, 0.0, -1.128, 4.71, 3.77, -1.51, 0.0);
+    ros::Duration(1).sleep();
+    ROS_INFO("Travelling right");
+  }
+
+  void go_to_belt()
+  {
+    set_joint_state(1.65, 2.0, -0.73, 0.0, 3.77, -1.51, 0.0);
+    ros::Duration(1).sleep();
+    ROS_INFO("Moved to belt");
+  }
+
+
 
   bool goToPose(geometry_msgs::Pose & target_pose, moveit::planning_interface::MoveGroupInterface & move_group)
   {
     move_group.setPoseTarget(target_pose);
-    move_group.move();
     move_group.plan(my_plan);
     success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    move_group.move();
     return success;
   }
 
@@ -285,77 +290,121 @@ public:
     ros::spinOnce();
   }
 
-  bool dropPart(geometry_msgs::PoseStamped & pose_1a, geometry_msgs::PoseStamped & pose_1b, moveit::planning_interface::MoveGroupInterface & move_group, int order_count)
+  bool grabPart(geometry_msgs::PoseStamped & pose_1a, moveit::planning_interface::MoveGroupInterface & move_group)
   {
+    ros::spinOnce();
     pose_1a.pose.orientation.w = w/mag;
     pose_1a.pose.orientation.x = x/mag;
     pose_1a.pose.orientation.y = y/mag;
     pose_1a.pose.orientation.z = z/mag;
-    pose_1b.pose.orientation.w = w/mag;
-    pose_1b.pose.orientation.x = x/mag;
-    pose_1b.pose.orientation.y = y/mag;
-    pose_1b.pose.orientation.z = z/mag;
-    bool success;
-    float lin_a = 0.0;
-    float lin_b = 2.1;
-    float pan_a = 3.14;
-    float pan_b = 1.51;
-    float pan_c = 1.4;
-    if (order_count%2 != 0)
-    {
-      lin_b = -lin_b;
-      pan_b = 4.71;
-      pan_c = 4.6;
-    }
 
-    float linear_pos[7] = {lin_a , lin_a, lin_b, lin_b, lin_b, lin_a, lin_a};
-    float shoulder_pan[7] = {pan_a, pan_b, pan_b, pan_c, pan_b, pan_b, pan_b};
-    float elbow[7] = {1.51, 1.51, 1.51, 1.46, 1.51, 1.51, 1.51};
-    float shoulder_lift[7] = {-1.128, -1.128, -1.128, -0.54, -1.128, -1.128, -1.128};
-    float wrist1[7] = {3.77, 3.77, 3.77, 3.8, 3.77, 3.77, 3.77};
-    float wrist2[7] = {-1.51, -1.51, -1.51, -1.57, -1.51, -1.51, -1.51};
-    float wrist3[7] = {0.0, 0.0, 0.0, 1.406, 0.0, 0.0, 0.0};
+    go_to_home();
+    ros::Duration(1).sleep();
 
-    int count = 0;
-
-    send_arm_to_zero_state(1.51, 0.0, -1.128, 3.14, 3.77, -1.51, 0.0);
-    ros::Duration(5).sleep();
-
-    pose_1a.pose.position.z += 0.17;
+    pose_1a.pose.position.z = 0.728;
     this->armController::goToPose(pose_1a.pose, move_group);
-    ros::Duration(3).sleep();
+    ros::Duration(1).sleep();
 
-    pose_1a.pose.position.z -= 0.17;
+    pose_1a.pose.position.z = 0.728;
     this->armController::goToPose(pose_1a.pose, move_group);
     this->armController::grab();
-    ros::Duration(3).sleep();
-    bool gripper_state = isGripperAttached();
+    ros::Duration(2).sleep();
+    ros::spinOnce();
+    bool success = isGripperAttached();
+    ROS_INFO_STREAM(success);
+    return success;
+  }
 
-    while (gripper_state == true && count < 7)
+
+  bool depositPart(geometry_msgs::PoseStamped & pose_1b, moveit::planning_interface::MoveGroupInterface & move_group, int agv_pos)
+  {
+    pose_1b.pose.orientation.w = 0.793;
+    pose_1b.pose.orientation.x = 0.0;
+    pose_1b.pose.orientation.y = 0.609;
+    pose_1b.pose.orientation.z = 0.0;
+    ros::spinOnce();
+
+    bool success = false;
+    bool gripperState = isGripperAttached();
+    while (gripperState == true)
     {
+      // go_to_home();
       ros::spinOnce();
-      gripper_state = isGripperAttached();
-      send_arm_to_zero_state(elbow[count], linear_pos[count], shoulder_lift[count], shoulder_pan[count], wrist1[count], wrist2[count], wrist3[count]);
-      ros::Duration(3).sleep();
-
-      if(count == 3)
+      gripperState = isGripperAttached();
+      if (gripperState == false)
       {
-        this->armController::release();
-        ros::Duration(3).sleep();
+        break;
       }
-      ROS_INFO_STREAM("Count :" << count);
-      count++;
-    }
 
-    if (count > 4)
-    {
-      success = true;
-      ROS_INFO("Motion complete.");
-    }
-    else
-    {
-      success = false;
-      ROS_INFO("Part Dropped.");
+      ros::Duration(1).sleep();
+      if (agv_pos == 0)
+      {
+        travel_left();
+        ros::spinOnce();
+        gripperState = isGripperAttached();
+        if (gripperState == false)
+        {
+          break;
+        }
+        ros::Duration(1).sleep();
+
+
+        go_to_agv1();
+        ros::spinOnce();
+        gripperState = isGripperAttached();
+        if (gripperState == false)
+        {
+          break;
+        }
+
+        this->armController::goToPose(pose_1b.pose, move_group);
+        ros::spinOnce();
+        gripperState = isGripperAttached();
+        if (gripperState == false)
+        {
+          break;
+        }
+
+
+        ros::Duration(2).sleep();
+        success = true;
+        this->armController::release();
+        ros::spinOnce();
+      }
+
+      else if (agv_pos == 1)
+      {
+        travel_right();
+        ros::spinOnce();
+        gripperState = isGripperAttached();
+        if (gripperState == false)
+        {
+          break;
+        }
+
+        ros::Duration(1).sleep();
+        go_to_agv2();
+        ros::spinOnce();
+        gripperState = isGripperAttached();
+        if (gripperState == false)
+        {
+          break;
+        }
+
+
+        this->armController::goToPose(pose_1b.pose, move_group);
+        ros::spinOnce();
+        gripperState = isGripperAttached();
+        if (gripperState == false)
+        {
+          break;
+        }
+
+        ros::Duration(2).sleep();
+        success = true;
+        this->armController::release();
+        ros::spinOnce();
+      }
     }
 
     return success;
@@ -387,6 +436,7 @@ private:
   geometry_msgs::Pose mid2_pose;
   geometry_msgs::Pose agv_pose;
 };
+
 
 
 
@@ -439,18 +489,28 @@ int main(int argc, char ** argv)
   bool success = false;
 
   std::string agvs[]={"agv1_load_point_frame","agv2_load_point_frame"};
-  for(osrf_gear::Model inventoryScan: invent_1)
-  {
-    ROS_INFO_STREAM(inventoryScan.type);
-  }
+  // for(osrf_gear::Model inventoryScan: invent_1)
+  // {
+  //   ROS_INFO_STREAM(inventoryScan.type);
+  // }
 
 
-  int currentAgv=-1;
+  int currentAgv=0;
   int order_count = 0;
+  int agvSelect = 0;
   for(osrf_gear::Kit currentKit: kitList)
   {
     currentAgv++;
     order_count++;
+    if (currentAgv%2 == 0)
+    {
+      agvSelect = 1;
+    }
+    else if (currentAgv%2 != 0)
+    {
+      agvSelect = 0;
+    }
+
     std::vector<osrf_gear::KitObject> objectList;
     for(osrf_gear::KitObject& object :currentKit.objects)
     {
@@ -463,6 +523,7 @@ int main(int argc, char ** argv)
       std::string Target_Bin;
       ROS_INFO_STREAM(currentOrder.type);
       std::vector<osrf_gear::Model> allObjects=LogicalImage_1.models;
+      Arm.go_to_belt();
       for (osrf_gear::Model& object : allObjects)
       {
         if(object.type==currentOrder.type)
@@ -486,65 +547,81 @@ int main(int argc, char ** argv)
         }
       }
 
-      geometry_msgs::PoseStamped initialPose, finalPose;
-      initialPose.pose=Target_Object.pose;
-      finalPose.pose=currentOrder.pose;
-      tf2_ros::Buffer tfBuffer;
-      tf2_ros::TransformListener tf2_listener(tfBuffer);
-      geometry_msgs::TransformStamped logical_camera_to_world_frame;
-      logical_camera_to_world_frame = tfBuffer.lookupTransform( "world", Target_Bin, ros::Time(0), ros::Duration(1.0) );
-      tf2::doTransform(initialPose, initialPose, logical_camera_to_world_frame);
-      ROS_INFO_STREAM(initialPose);
+      bool drop = false;
+      bool approach = false;
 
-      geometry_msgs::TransformStamped agv_to_world_frame;
-      agv_to_world_frame = tfBuffer.lookupTransform( "world", agvs[currentAgv], ros::Time(0), ros::Duration(1.0) );
-      ROS_INFO_STREAM(agvs[currentAgv]);
-      tf2::doTransform(finalPose, finalPose, agv_to_world_frame);
-      ROS_INFO_STREAM(finalPose);
-
-      float pan_final = 1.51;
-      finalPose.pose.position.x = 0.3;
-      if (order_count%2 != 0)
+      while (drop == false || approach == false)
       {
-        finalPose.pose.position.y = 3.1;
-        pan_final = 4.71;
-      }
-      else
-      {
-        finalPose.pose.position.y = -3.1;
-      }
-      
-      finalPose.pose.position.z = 0.9;
+        geometry_msgs::PoseStamped initialPose, finalPose;
+        initialPose.pose=Target_Object.pose;
+        finalPose.pose=currentOrder.pose;
+        tf2_ros::Buffer tfBuffer;
+        tf2_ros::TransformListener tf2_listener(tfBuffer);
+        geometry_msgs::TransformStamped logical_camera_to_world_frame;
+        logical_camera_to_world_frame = tfBuffer.lookupTransform( "world", Target_Bin, ros::Time(0), ros::Duration(1.0) );
+        tf2::doTransform(initialPose, initialPose, logical_camera_to_world_frame);
+        ROS_INFO_STREAM(initialPose);
 
-      bool plan_fin = Arm.dropPart(initialPose, finalPose, move_group, order_count);
-      ROS_INFO_STREAM("Motion complete" << plan_fin);
+        geometry_msgs::TransformStamped agv_to_world_frame;
+        agv_to_world_frame = tfBuffer.lookupTransform( "world", agvs[agvSelect], ros::Time(0), ros::Duration(1.0) );
+        ROS_INFO_STREAM(agvs[agvSelect]);
+        tf2::doTransform(finalPose, finalPose, agv_to_world_frame);
+        ROS_INFO_STREAM(finalPose);
 
-      // objectList.erase(objectList.begin());
-      Arm.send_arm_to_zero_state(1.51, 0.0, -1.128, pan_final, 3.77, -1.51, 0.0);
-      ros::Duration(2).sleep();
+        approach = Arm.grabPart(initialPose, move_group);
 
-      if (plan_fin == true)
-      {
-        objectList.erase(objectList.begin());
-        Arm.send_arm_to_zero_state(1.51, 0.0, -1.128, 3.14, 3.77, -1.51, 0.0);
-        ROS_INFO("Next action.");
-      }
-      else
-      {
-        Arm.send_arm_to_zero_state(1.51, 0.0, -1.128, 3.14, 3.77, -1.51, 0.0);
+        ros::spinOnce();
+        drop = Arm.depositPart(finalPose, move_group, agvSelect);
+        ros::spinOnce();
+        Arm.travel_left();
+        ros::spinOnce();
         ros::Duration(2).sleep();
-        ROS_INFO("Repeating Action.");
       }
+      objectList.erase(objectList.begin());
+      
+      // float pan_final = 1.51;
+      // finalPose.pose.position.x = 0.3;
+      // if (order_count%2 == 0)
+      // {
+      //   finalPose.pose.position.y = 3.1;
+      //   pan_final = 4.71;
+      // }
+      // else
+      // {
+      //   finalPose.pose.position.y = -3.1;
+      // }
+      
+      // finalPose.pose.position.z = 0.9;
+
+      // bool plan_fin = Arm.dropPart(initialPose, finalPose, move_group, order_count);
+      // ROS_INFO_STREAM("Motion complete" << plan_fin);
+
+      // // objectList.erase(objectList.begin());
+      // Arm.set_joint_state(1.51, 0.0, -1.128, pan_final, 3.77, -1.51, 0.0);
+      // //ros::Duration(2).sleep();
+
+      // if (plan_fin == true)
+      // {
+      //   objectList.erase(objectList.begin());
+      //   Arm.set_joint_state(1.51, 0.0, -1.128, 3.14, 3.77, -1.51, 0.0);
+      //   ROS_INFO("Next action.");
+      // }
+      // else
+      // {
+      //   Arm.set_joint_state(1.51, 0.0, -1.128, 3.14, 3.77, -1.51, 0.0);
+      //   //ros::Duration(2).sleep();
+      //   ROS_INFO("Repeating Action.");
+      // }
 
     }
   }
-  osrf_gear::AGVControl srv1;
-  ros::ServiceClient client1 = node.serviceClient<osrf_gear::AGVControl>("/ariac/agv1");
-  client1.call(srv1);
+  // osrf_gear::AGVControl srv1;
+  // ros::ServiceClient client1 = node.serviceClient<osrf_gear::AGVControl>("/ariac/agv1");
+  // client1.call(srv1);
 
-  osrf_gear::AGVControl srv2;
-  ros::ServiceClient client2 = node.serviceClient<osrf_gear::AGVControl>("/ariac/agv2");
-  client1.call(srv2);
+  // osrf_gear::AGVControl srv2;
+  // ros::ServiceClient client2 = node.serviceClient<osrf_gear::AGVControl>("/ariac/agv2");
+  // client1.call(srv2);
   return 0;
 }
 
