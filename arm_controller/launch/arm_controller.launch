@@ -1,0 +1,14 @@
+<launch>
+ 
+  <include file="$(find ur10_moveit_config)/launch/ur10_moveit_planning_execution.launch">
+  <arg name ="sim" value="true"/>
+</include>
+
+  <node name="competition_node" pkg="competition" type="competition_node" respawn="false" output="screen">
+  </node>
+
+  
+  <node name="arm_node" pkg="arm_controller" type="arm_node" respawn="false" output="screen">
+  </node>
+  
+</launch>

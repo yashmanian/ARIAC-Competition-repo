@@ -1,0 +1,7 @@
+string bin_type
+int32 bin_number
+string part_type
+geometry_msgs/PoseStamped Initial_Pose
+geometry_msgs/PoseStamped Final_Pose
+int32 Agv_Number
+float64 Velocity

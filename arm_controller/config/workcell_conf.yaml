@@ -1,0 +1,53 @@
+arm:
+  type: ur10
+sensors:
+  logical_camera_1:
+    type: logical_camera
+    pose:
+      xyz: [1.2, 3.40, 1.56]
+      rpy: ['pi/2', 1.567591, 1.567635]
+  logical_camera_2:
+    type: logical_camera
+    pose:
+      xyz: [-0.66, -1.32, 1.36]
+      rpy: ['pi/2', 1.32, 0]
+  logical_camera_3:
+    type: logical_camera
+    pose:
+      xyz: [-0.66, -0.55, 1.36]
+      rpy: ['pi/2', 1.32, 0]
+  logical_camera_4:
+    type: logical_camera
+    pose:
+      xyz: [-0.66, 0.22, 1.36]
+      rpy: ['pi/2', 1.32, 0]
+  logical_camera_5:
+    type: logical_camera
+    pose:
+      xyz: [-0.66, 0.99, 1.36]
+      rpy: ['pi/2', 1.32, 0]
+
+  break_beam_1:
+    type: break_beam
+    pose:
+      xyz: [1.60, 0.2, 0.91]
+      rpy: [0, 0, 'pi']
+
+  break_beam_2:
+    type: break_beam
+    pose:
+      xyz: [1.60, 0.85, 0.91]
+      rpy: [0, 0, 'pi']
+
+
+  break_beam_3:
+    type: break_beam
+    pose:
+      xyz: [1.60, 1.55, 0.91]
+      rpy: [0, 0, 'pi']
+
+  break_beam_4:
+    type: break_beam
+    pose:
+      xyz: [1.60, 2.15, 0.91]
+      rpy: [0, 0, 'pi']
